@@ -1,0 +1,32 @@
+[package]
+name = "file-classifier"
+version = "1.0.0"
+edition = "2021"
+
+[lib]
+name = "file_classifier_lib"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[[bin]]
+name = "FileClassifier"
+path = "src/main.rs"
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+unicode-normalization = "0.1"
+tokio = { version = "1", features = ["full"] }
+thiserror = "2"
+
+[dev-dependencies]
+tempfile = "3"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
