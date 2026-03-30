@@ -23,6 +23,8 @@ export default function DictionaryEditor({ onBack }: Props) {
   const [newKeyValue, setNewKeyValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [dictCreating, setDictCreating] = useState(false);
+  const [pendingDictFolder, setPendingDictFolder] = useState<string | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
 
   // 初回読み込み（設定+辞書をディスクから）
@@ -186,19 +188,28 @@ export default function DictionaryEditor({ onBack }: Props) {
     }
   };
 
-  const handleCreateDict = async () => {
+  const handleSelectDictFolder = async () => {
     const selected = await open({
       directory: true,
       defaultPath: settings.output_dir || undefined,
     });
     if (!selected) return;
-    if (!confirm("既存の辞書を上書きしますか？")) return;
+    setPendingDictFolder(selected);
+  };
+
+  const handleConfirmCreateDict = async () => {
+    if (!pendingDictFolder) return;
+    setPendingDictFolder(null);
+    setDictCreating(true);
+    setError(null);
     try {
-      const dict = await api.createDictionaryFromFolder(selected, settings);
+      const dict = await api.createDictionaryFromFolder(pendingDictFolder, settings);
       setGroups(dict.entries);
-      setError(null);
+      setError("saved_dict");
     } catch (e) {
       setError(`辞書作成エラー: ${e}`);
+    } finally {
+      setDictCreating(false);
     }
   };
 
@@ -229,7 +240,8 @@ export default function DictionaryEditor({ onBack }: Props) {
         />
         <button
           className="px-3 py-1 text-sm border rounded hover:bg-gray-100"
-          onClick={handleCreateDict}
+          onClick={handleSelectDictFolder}
+          disabled={dictCreating}
         >
           辞書作成
         </button>
@@ -241,14 +253,39 @@ export default function DictionaryEditor({ onBack }: Props) {
         </button>
       </div>
 
+      {/* 辞書作成確認ダイアログ */}
+      {pendingDictFolder && (
+        <div className="border-b bg-yellow-50 border-yellow-200 px-4 py-3 text-sm flex items-center justify-between">
+          <span>既存の辞書を上書きして、フォルダから辞書を作成しますか？</span>
+          <div className="flex gap-2 ml-4 shrink-0">
+            <button
+              className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+              onClick={handleConfirmCreateDict}
+            >
+              作成
+            </button>
+            <button
+              className="px-3 py-1 text-sm border rounded hover:bg-gray-100"
+              onClick={() => setPendingDictFolder(null)}
+            >
+              キャンセル
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* メッセージ表示 */}
       {error && (
         <div className={`border-b px-4 py-2 text-sm flex items-center justify-between ${
-          error === "saved"
+          error === "saved" || error === "saved_dict"
             ? "bg-green-50 border-green-200 text-green-700"
             : "bg-red-50 border-red-200 text-red-700"
         }`}>
-          <span>{error === "saved" ? "辞書を保存しました" : error}</span>
+          <span>{
+            error === "saved" ? "辞書を保存しました"
+            : error === "saved_dict" ? "辞書を作成しました"
+            : error
+          }</span>
           <button className="ml-2 underline" onClick={() => setError(null)}>
             閉じる
           </button>
@@ -257,7 +294,11 @@ export default function DictionaryEditor({ onBack }: Props) {
 
       {/* テーブル */}
       <div className="flex-1 overflow-auto" ref={tableRef}>
-        {loading ? (
+        {dictCreating ? (
+          <p className="text-sm text-gray-500 text-center py-8">
+            辞書を作成中...
+          </p>
+        ) : loading ? (
           <p className="text-sm text-gray-500 text-center py-8">
             読み込み中...
           </p>

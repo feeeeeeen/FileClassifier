@@ -257,15 +257,39 @@ pub fn create_dictionary_from_folder(
 
     let mut new_dict = dictionary::Dictionary::new();
 
-    let entries = std::fs::read_dir(&path)
-        .map_err(|e| format!("フォルダの読み込みに失敗: {}", e))?;
+    // パス1: フォルダ名からキー生成（最優先）
+    let subdirs: Vec<String> = std::fs::read_dir(&path)
+        .map_err(|e| format!("フォルダの読み込みに失敗: {}", e))?
+        .flatten()
+        .filter(|e| e.path().is_dir())
+        .filter_map(|e| e.file_name().into_string().ok())
+        .collect();
 
-    for entry in entries.flatten() {
-        if entry.path().is_dir() {
-            let folder_name = entry.file_name().to_string_lossy().to_string();
-            let keys = dictionary::generate_keys_from_folder_name(&folder_name);
-            for (key, value) in keys {
-                new_dict.insert(key, value);
+    for folder_name in &subdirs {
+        let keys = dictionary::generate_keys_from_folder_name(folder_name);
+        for (key, value) in keys {
+            new_dict.insert(key, value);
+        }
+    }
+
+    // パス2: フォルダ内ファイルのタグからキー追加（先勝ち=既存キーは上書きしない）
+    for folder_name in &subdirs {
+        let folder_path = path.join(folder_name);
+        let files = match std::fs::read_dir(&folder_path) {
+            Ok(entries) => entries,
+            Err(_) => continue,
+        };
+        for file_entry in files.flatten() {
+            if !file_entry.path().is_file() {
+                continue;
+            }
+            let file_name = file_entry.file_name().to_string_lossy().to_string();
+            if let Some(tag) = crate::tag::extract_tag(&file_name) {
+                let key = normalize(&tag);
+                if !key.is_empty() {
+                    // 先勝ち: 既にキーが存在すればスキップ
+                    new_dict.entry(key).or_insert_with(|| folder_name.clone());
+                }
             }
         }
     }

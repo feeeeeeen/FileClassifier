@@ -270,8 +270,9 @@ function SmallFolderPanel({
   const [folders, setFolders] = useState<SmallFolder[]>([]);
   const [detected, setDetected] = useState(false);
   const [loading, setLoading] = useState(false);
+  const nextGroupId = useRef(0);
   const [mergeGroups, setMergeGroups] = useState<
-    { name: string; items: SmallFolder[] }[]
+    { id: number; name: string; items: SmallFolder[] }[]
   >([]);
   const [unassigned, setUnassigned] = useState<SmallFolder[]>([]);
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" | "warning" } | null>(null);
@@ -301,9 +302,10 @@ function SmallFolderPanel({
   };
 
   const addGroup = () => {
+    const id = nextGroupId.current++;
     setMergeGroups((prev) => [
       ...prev,
-      { name: `まとめ${prev.length + 1}`, items: [] },
+      { id, name: `まとめ${prev.length + 1}`, items: [] },
     ]);
   };
 
@@ -404,7 +406,7 @@ function SmallFolderPanel({
 
           <div className="space-y-3 mb-3">
             {mergeGroups.map((group, gi) => (
-              <div key={`group-${group.name}`} className="border rounded p-2">
+              <div key={group.id} className="border rounded p-2">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-xs text-gray-500">
                     グループ{gi + 1}:
@@ -472,7 +474,7 @@ function SmallFolderPanel({
                       >
                         <option value="">割り当て先...</option>
                         {mergeGroups.map((g) => (
-                          <option key={`opt-${g.name}`} value={mergeGroups.indexOf(g)}>
+                          <option key={g.id} value={mergeGroups.indexOf(g)}>
                             {g.name}
                           </option>
                         ))}
